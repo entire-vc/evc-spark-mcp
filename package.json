@@ -1,0 +1,52 @@
+{
+  "name": "evc-spark-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Spark AI Assets Marketplace — search and discover agents, skills, prompts, and MCP connectors",
+  "type": "module",
+  "bin": {
+    "evc-spark-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "inspect": "npx @modelcontextprotocol/inspector dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "ai",
+    "agents",
+    "prompts",
+    "skills",
+    "marketplace",
+    "spark",
+    "entire-vc"
+  ],
+  "author": "Entire VC <dev@entire.vc>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/entire-vc/evc-spark-mcp"
+  },
+  "homepage": "https://spark.entire.vc",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
