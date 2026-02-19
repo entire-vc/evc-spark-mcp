@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/evc-spark-mcp.svg)](https://www.npmjs.com/package/evc-spark-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-MCP server for [Spark AI Assets Marketplace](https://spark.entire.vc) — search and discover agents, skills, prompts, and MCP connectors.
+MCP server for [Entire VC Spark](https://spark.entire.vc) — search and discover agents, skills, prompts, and MCP connectors.
 
 ## Quick Start
 
