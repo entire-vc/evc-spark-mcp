@@ -1,9 +1,13 @@
-# evc-spark-mcp
+# Spark MCP
 
 [![npm version](https://img.shields.io/npm/v/evc-spark-mcp.svg)](https://www.npmjs.com/package/evc-spark-mcp)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![MCP](https://img.shields.io/badge/MCP-compatible-00A67E)](https://modelcontextprotocol.io)
+[![Entire VC](https://img.shields.io/badge/Entire_VC-toolbox-525769)](https://entire.vc)
 
-MCP server for [Entire VC Spark](https://spark.entire.vc) — search and discover agents, skills, prompts, and MCP connectors.
+MCP server for [Spark](https://spark.entire.vc) — your AI toolbox for real work. Search and discover agents, skills, prompts, bundles, and MCP connectors.
+
+---
 
 ## Quick Start
 
@@ -11,15 +15,36 @@ MCP server for [Entire VC Spark](https://spark.entire.vc) — search and discove
 npx evc-spark-mcp
 ```
 
-### Add to Claude Code
+That's it. No API key needed.
+
+---
+
+## Setup
+
+### Claude Code
 
 ```bash
 claude mcp add spark -- npx -y evc-spark-mcp
 ```
 
-### Add to Claude Desktop
+### Claude Desktop
 
-Add to your `claude_desktop_config.json`:
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "spark": {
+      "command": "npx",
+      "args": ["-y", "evc-spark-mcp"]
+    }
+  }
+}
+```
+
+### Cursor
+
+Add to Cursor MCP settings:
 
 ```json
 {
@@ -32,9 +57,7 @@ Add to your `claude_desktop_config.json`:
 }
 ```
 
-### Add to Cursor
-
-Add to your Cursor MCP settings:
+### OpenClaw
 
 ```json
 {
@@ -46,6 +69,12 @@ Add to your Cursor MCP settings:
   }
 }
 ```
+
+### ChatGPT (via MCP bridge)
+
+Any MCP-compatible client works — just point it at `npx evc-spark-mcp`.
+
+---
 
 ## Tools
 
@@ -64,12 +93,30 @@ Add to your Cursor MCP settings:
 | `spark://assets/{slug}` | Asset content as markdown |
 | `spark://catalog/{type}` | Asset list by type (agent, skill, prompt, etc.) |
 
+---
+
+## What's in the Catalog
+
+[Spark](https://spark.entire.vc) is a marketplace of AI workflow assets:
+
+- **Agents** — ready-to-use AI agent configurations
+- **Skills** — capabilities you can add to your agent (like this MCP server)
+- **Prompts** — tested prompt templates for specific tasks
+- **Bundles** — curated sets of tools that work together
+- **MCP Connectors** — integrations with external services
+
+Find, share, and monetize AI tools — all in one place.
+
+---
+
 ## Configuration
 
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
 | `SPARK_API_URL` | `https://spark.entire.vc/api/v1` | Spark API base URL |
 | `SPARK_SITE_URL` | `https://spark.entire.vc` | Spark website URL (for links) |
+
+---
 
 ## Development
 
@@ -87,6 +134,25 @@ npm run build
 npm run inspect
 ```
 
+---
+
+## Part of the Entire VC Toolbox
+
+| Product | What it does | Link |
+|---------|-------------|------|
+| **Local Sync** | Vault ↔ AI dev tools sync | [repo](https://github.com/entire-vc/evc-local-sync-plugin) |
+| **Team Relay** | Self-hosted collaboration server | [repo](https://github.com/entire-vc/evc-team-relay) |
+| **Team Relay Plugin** | Obsidian plugin for Team Relay | [repo](https://github.com/entire-vc/evc-team-relay-obsidian-plugin) |
+| **OpenClaw Skill** | AI agent ↔ vault access | [repo](https://github.com/entire-vc/evc-team-relay-openclaw-skill) |
+| **Spark MCP** ← you are here | MCP server for Spark catalog | this repo |
+
+## Community
+
+- 🌐 [entire.vc](https://entire.vc)
+- ⚡ [spark.entire.vc](https://spark.entire.vc)
+- 💬 [Discussions](https://github.com/entire-vc/.github/discussions)
+- 📧 in@entire.vc
+
 ## License
 
-MIT
+MIT — Copyright (c) 2026 Entire VC
