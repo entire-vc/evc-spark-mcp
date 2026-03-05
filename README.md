@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/evc-spark-mcp.svg)](https://www.npmjs.com/package/evc-spark-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![MCP](https://img.shields.io/badge/MCP-compatible-00A67E)](https://modelcontextprotocol.io)
-[![Entire VC](https://img.shields.io/badge/Entire_VC-toolbox-525769)](https://entire.vc)
+[![Install via Spark](https://spark.entire.vc/badges/evc-spark-mcp/install.svg)](https://spark.entire.vc/get/evc-spark-mcp?utm_source=github&utm_medium=readme)
 
 MCP server for [Spark](https://spark.entire.vc) — your AI toolbox for real work. Search and discover agents, skills, prompts, bundles, and MCP connectors.
 
