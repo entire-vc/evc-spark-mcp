@@ -7,6 +7,10 @@
 
 MCP server for [Spark](https://spark.entire.vc) — your AI toolbox for real work. Search and discover agents, skills, prompts, bundles, and MCP connectors.
 
+<a href="https://glama.ai/mcp/servers/entire-vc/evc-spark-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/entire-vc/evc-spark-mcp/badge" alt="evc-spark-mcp MCP server" />
+</a>
+
 ---
 
 ## Quick Start
