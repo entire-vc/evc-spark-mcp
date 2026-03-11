@@ -7,10 +7,6 @@
 
 MCP server for [Spark](https://spark.entire.vc) — your AI toolbox for real work. Search and discover agents, skills, prompts, bundles, and MCP connectors.
 
-<a href="https://glama.ai/mcp/servers/entire-vc/evc-spark-mcp">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/entire-vc/evc-spark-mcp/badge" alt="evc-spark-mcp MCP server" />
-</a>
-
 ---
 
 ## Quick Start
@@ -149,6 +145,10 @@ npm run inspect
 | **Team Relay Plugin** | Obsidian plugin for Team Relay | [repo](https://github.com/entire-vc/evc-team-relay-obsidian-plugin) |
 | **OpenClaw Skill** | AI agent ↔ vault access | [repo](https://github.com/entire-vc/evc-team-relay-openclaw-skill) |
 | **Spark MCP** ← you are here | MCP server for Spark catalog | this repo |
+
+<a href="https://glama.ai/mcp/servers/entire-vc/evc-spark-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/entire-vc/evc-spark-mcp/badge" alt="evc-spark-mcp MCP server" />
+</a>
 
 ## Community
 
