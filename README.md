@@ -9,6 +9,10 @@ MCP server for [Spark](https://spark.entire.vc) — your AI toolbox for real wor
 
 ---
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/entire-vc-evc-spark-mcp).
+
 ## Quick Start
 
 ```bash
