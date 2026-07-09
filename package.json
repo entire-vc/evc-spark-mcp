@@ -1,6 +1,6 @@
 {
   "name": "evc-spark-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MCP server for Spark AI Assets Marketplace — search and discover agents, skills, prompts, and MCP connectors",
   "type": "module",
   "bin": {
