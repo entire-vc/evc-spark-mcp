@@ -329,7 +329,7 @@ describe("formatAssetFull", () => {
 
 describe("trialFooter", () => {
   it("is empty for authenticated callers", () => {
-    expect(trialFooter(10, false)).toBe("DELIBERATE-FAILURE-TO-PROVE-CI-GATE");
+    expect(trialFooter(10, false)).toBe("");
   });
 
   it("warns and shows the result count in trial mode", () => {
