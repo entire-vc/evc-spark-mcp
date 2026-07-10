@@ -48,5 +48,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "overrides": {
+    "express-rate-limit": ">=8.2.2"
   }
 }
