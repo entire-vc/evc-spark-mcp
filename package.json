@@ -41,7 +41,7 @@
   "homepage": "https://spark.entire.vc",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "zod": "^3.24.2"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
