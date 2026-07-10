@@ -81,6 +81,22 @@ async function sparkApi<T = unknown>(path: string): Promise<T> {
 // Types (matching Spark API responses)
 // ---------------------------------------------------------------------------
 
+/** Where a tool can be reached. `gate` is absent unless the tool is in MCP Gate. */
+interface AssetEndpoints {
+  original: {
+    url: string | null;
+    auth: string;
+    kind: "self_host" | "hosted";
+  };
+  gate?: {
+    url: string;
+    auth: string;
+    signup_url: string;
+    billed: boolean;
+    server_id?: string | null;
+  };
+}
+
 interface AssetListItem {
   id: string;
   type: string;
@@ -100,6 +116,7 @@ interface AssetListItem {
   is_featured: boolean;
   is_verified: boolean;
   created_at: string;
+  endpoints?: AssetEndpoints;
 }
 
 interface Asset extends AssetListItem {
@@ -141,6 +158,23 @@ function assetUrl(asset: { type: string; slug: string }): string {
   return `${SPARK_SITE}/${slug}/${asset.slug}`;
 }
 
+/** Render the original/gate endpoint pair. Empty array when the asset carries none. */
+function formatEndpoints(e: AssetEndpoints | undefined, indent: string): string[] {
+  if (!e) return [];
+  const lines = ["Endpoints:"];
+  if (e.original.url) {
+    const kind = e.original.kind === "hosted" ? "hosted" : "self-host";
+    lines.push(`${indent}original (${kind}): ${e.original.url}`);
+  }
+  if (e.gate) {
+    lines.push(
+      `${indent}gate (billed, via Entire VC): ${e.gate.url} — API key: ${e.gate.signup_url}`
+    );
+  }
+  // Only the header would remain if the asset has neither a source url nor a gate entry.
+  return lines.length > 1 ? lines : [];
+}
+
 function formatAssetSummary(a: AssetListItem): string {
   const badges = [
     a.is_featured ? "Featured" : "",
@@ -165,6 +199,7 @@ function formatAssetSummary(a: AssetListItem): string {
       ? `Domains: ${a.domain_tags.map((d) => d.child_name).join(", ")}`
       : "",
     `URL: ${assetUrl(a)}`,
+    ...formatEndpoints(a.endpoints, "  "),
   ]
     .filter(Boolean)
     .join("\n");
@@ -194,6 +229,11 @@ function formatAssetFull(a: Asset): string {
     sections.push(
       `**Source:** ${a.external_source_name}${a.external_source_url ? ` (${a.external_source_url})` : ""}`
     );
+  }
+
+  const endpointLines = formatEndpoints(a.endpoints, "- ");
+  if (endpointLines.length) {
+    sections.push("", "## Endpoints", "", ...endpointLines.slice(1));
   }
 
   sections.push("", "## Description", "", a.description_md);
