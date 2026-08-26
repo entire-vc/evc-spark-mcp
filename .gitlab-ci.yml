@@ -1,0 +1,116 @@
+# CI for the GitLab canon (git.entire.host/entire-vc/evc-spark-mcp).
+#
+# ## Why this file exists
+#
+# Development moved from GitHub to GitLab on 2026-08-23 (§0z). The two checks
+# that guarded a merge here — `.github/workflows/test.yml` and the `Hold gate`
+# required check — are triggered by `on: pull_request`. A GitLab merge request
+# creates no GitHub pull request, so neither fires. Measured on 2026-08-23:
+# no `.gitlab-ci.yml` in the tree, zero pipelines in the project's history.
+# Merges into `main` here were checked by nothing.
+#
+# ## Scope
+#
+# This is a complete port of what actually gated a merge: the hold gate, the
+# TypeScript build, and the vitest suite. Deliberately absent:
+#
+#   * **`.github/workflows/publish.yml`** — npm publish on a `v*` tag. Not a
+#     merge check, and repointing the package registry off npmjs is a
+#     different piece of the migration (see the brandkit repoint, which moved
+#     `@entire-vc/*` to GitLab's own npm registry). Left on GitHub until that
+#     decision reaches this package.
+#
+# ## The half that is not in this file
+#
+# `only_allow_merge_if_pipeline_succeeds` is `false` on this project
+# (measured), so GitLab still merges over a red pipeline via the web button or
+# a bare `glab mr merge`. Flipping it needs Maintainer(40); every agent
+# account on this group is Developer(30). Asked separately on the fleet card.
+# Until then this pipeline informs; it does not block.
+#
+# ## Traps this file is written against
+#
+#   1. **No `timeout:` = a job can hang for hours** (`#b85b8196` on GitHub:
+#      a stalled apt mirror held a required check). Every job below has one.
+#   2. **`allow_failure: true` hides a wholly dead job** (`#3dbf4f14`: a job
+#      that failed in 2s and reported success). Not used anywhere here.
+#   3. **`echo "$X" | grep -q` under `set -o pipefail` inverts the test** —
+#      on a match `grep -q` closes the pipe and `echo` takes SIGPIPE. No such
+#      construct below.
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # Never run a branch pipeline for a branch that already has an open MR:
+    # GitLab's duplicate-pipeline trap, and it doubles load on the single
+    # shared runner this fleet has.
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+stages: [gate, test]
+
+default:
+  tags: [docker]
+  interruptible: true
+
+# ── gate ────────────────────────────────────────────────────────────────────
+# Makes the `hold` label a gate here too. `~/bin/glab-merge` reads the same
+# label list, but a wrapper is a request, not a wall — the web button and a
+# bare `glab mr merge` never ask it.
+#
+# The label list is READ FROM `.github/hold-labels.txt`, the file already in
+# this repository, rather than copied into this one. A second copy is a second
+# thing to drift, and the fleet list drifted from its CI copy within a day of
+# being written (§1q).
+hold-gate:
+  stage: gate
+  image: alpine:latest
+  timeout: 5m
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - |
+      set -eu
+      LABELS_FILE=.github/hold-labels.txt
+      # Fail closed on every unknown. "I could not check" must never read the
+      # same as "I checked and it is clean" (§0x).
+      test -f "$LABELS_FILE" || { echo "REFUSING: $LABELS_FILE missing — cannot know what 'held' means"; exit 1; }
+      HOLD=$(grep -vE '^\s*(#|$)' "$LABELS_FILE" | tr 'A-Z' 'a-z' | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -c . || true)
+      test "$HOLD" -gt 0 || { echo "REFUSING: $LABELS_FILE parsed to zero labels — a gate that knows no hold label passes everything"; exit 1; }
+      echo "hold labels known: $HOLD"
+      echo "labels on this merge request: '${CI_MERGE_REQUEST_LABELS:-}'"
+      FOUND=""
+      OLDIFS=$IFS; IFS=','
+      for L in ${CI_MERGE_REQUEST_LABELS:-}; do
+        L=$(printf '%s' "$L" | tr 'A-Z' 'a-z' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [ -n "$L" ] || continue
+        if grep -vE '^\s*(#|$)' "$LABELS_FILE" | tr 'A-Z' 'a-z' | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -qxF "$L"; then
+          FOUND="$FOUND $L"
+        fi
+      done
+      IFS=$OLDIFS
+      if [ -n "$FOUND" ]; then
+        echo "REFUSING to let this merge request through: it carries a hold label —$FOUND"
+        echo "Remove the label when the work is ready; this job re-runs on the next pipeline."
+        exit 1
+      fi
+      echo "no hold label present ✓"
+
+# ── test ────────────────────────────────────────────────────────────────────
+# Same three commands as .github/workflows/test.yml: install, build, test.
+# `npm test` is `vitest run` over tests/lib.test.ts + tests/tools.test.ts —
+# a real suite, not a placeholder.
+test:
+  stage: test
+  image: node:22
+  timeout: 15m
+  cache:
+    key: npm-$CI_COMMIT_REF_SLUG
+    paths: [.npmcache/]
+  variables:
+    npm_config_cache: "$CI_PROJECT_DIR/.npmcache"
+  script:
+    - npm ci
+    - npm run build
+    - npm test
