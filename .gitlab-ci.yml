@@ -103,7 +103,7 @@ hold-gate:
 # a real suite, not a placeholder.
 test:
   stage: test
-  image: node:22
+  image: node:24
   timeout: 15m
   cache:
     key: npm-$CI_COMMIT_REF_SLUG
