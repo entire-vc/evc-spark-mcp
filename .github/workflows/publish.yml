@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
+
     steps:
       - uses: actions/checkout@v7
 
@@ -18,10 +20,12 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
+      # Trusted Publishing (OIDC) needs npm >= 11.5.1; Node 22's bundled npm
+      # predates that, so pin explicitly rather than trust whatever setup-node ships.
+      - run: npm install -g npm@latest
+
       - run: npm ci
 
       - run: npm run build
 
       - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
