@@ -1,9 +1,22 @@
 name: Publish to npm
 
+# ⚠️ `push: tags` alone is a dead trigger on this repo. Per Pavel's 22.08
+# mirror-policy decision (variant B), GitLab→GitHub mirroring deliberately
+# HOLDS tags for any repo whose tag carries a publisher (npm/PyPI/Docker
+# Hub/GitHub Release) — double-publishing the same tag fails hard downstream.
+# evc-spark-mcp is exactly that case: a tag pushed to GitLab canon (origin)
+# will never reach this GitHub mirror on its own. v1.1.0 sat unpublished for
+# ~1.5 months this way, unnoticed. workflow_dispatch is the real trigger now;
+# the tag-push trigger stays only for the (currently theoretical) case of a
+# tag pushed directly to GitHub.
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch: {}
+  # Trigger this from GitLab canon after bumping package.json's version and
+  # merging to main (which DOES mirror to GitHub automatically):
+  #   gh workflow run publish.yml --repo entire-vc/evc-spark-mcp --ref main
 
 jobs:
   publish:
