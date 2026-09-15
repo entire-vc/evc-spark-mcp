@@ -14,12 +14,15 @@ import {
   type AssetListItem,
   type AiTag,
   type DomainGroup,
+  type AssetDetailResponse,
+  type ContentResponse,
   type PaginatedResponse,
   type SparkConfig,
   formatAssetFull,
   formatAssetSummary,
   sparkApi,
   trialFooter,
+  unwrapAsset,
 } from "./lib.js";
 
 export const SERVER_NAME = "spark-mcp";
@@ -62,6 +65,16 @@ export function createServer(cfg: SparkConfig): McpServer {
     { capabilities: { tools: {}, resources: {} } }
   );
 
+  const fetchAsset = async (slug: string): Promise<Asset> =>
+    unwrapAsset(await sparkApi<AssetDetailResponse>(cfg, `${cfg.assetsPath}/${encodeURIComponent(slug)}`));
+
+  // One stdio process serves one client, so the recent searches it made are this
+  // client's own. The content route records the search whose results held the asset
+  // (the hosted server does the same per session), for the outcome report to carry.
+  const recentSearches: { query: string; slugs: Set<string> }[] = [];
+  const searchThatLedTo = (slug: string): string | undefined =>
+    [...recentSearches].reverse().find((s) => s.slugs.has(slug))?.query;
+
   const searchTrialNotice = !cfg.apiKey
     ? " [Trial mode: limited to 5 results. Set SPARK_API_KEY for full access: https://spark.entire.vc/create]"
     : "";
@@ -98,13 +111,21 @@ export function createServer(cfg: SparkConfig): McpServer {
       params.set("page_size", String(limit));
       params.set("sort", sort);
       if (job) params.set("job", job);
-      if (type) params.set("asset_type", type);
+      // `/mcp/assets` reads `type`, `/assets` reads `asset_type`: send both, or the
+      // filter is silently ignored on one of them.
+      if (type) {
+        params.set("type", type);
+        params.set("asset_type", type);
+      }
       if (domain) params.set("domain", domain);
 
       const res = await sparkApi<PaginatedResponse<AssetListItem>>(
         cfg,
         `${cfg.assetsPath}?${params.toString()}`
       );
+
+      recentSearches.push({ query, slugs: new Set(res.items.map((a) => a.slug)) });
+      if (recentSearches.length > 5) recentSearches.shift();
 
       if (res.items.length === 0) {
         return {
@@ -131,51 +152,50 @@ export function createServer(cfg: SparkConfig): McpServer {
 
   server.tool(
     "get_asset",
-    "Get full details of a Spark asset by its slug. Returns description, content, files, outcome reports, and more.",
+    "Get full details of a Spark asset by its slug. Returns description, files, outcome reports, and more.",
     {
       slug: z.string().describe("Asset slug (e.g. 'vb-seo-expert', 'vb-python-expert')"),
     },
-    async ({ slug }) => {
-      const asset = await sparkApi<Asset>(cfg, `${cfg.assetsPath}/${slug}`);
-      return {
-        content: [{ type: "text" as const, text: formatAssetFull(cfg, asset) }],
-      };
-    }
+    async ({ slug }) => ({
+      content: [{ type: "text" as const, text: formatAssetFull(cfg, await fetchAsset(slug)) }],
+    })
   );
 
   server.tool(
     "get_asset_content",
-    "Get the raw content of a Spark asset (prompt text, skill instructions, agent config). Best for prompts and skills that have inline content.",
+    "Get the raw content of a Spark asset (prompt text, skill instructions, agent config). This counts as an acquisition and ends with an application_id to report the outcome with.",
     {
       slug: z.string().describe("Asset slug"),
     },
     async ({ slug }) => {
-      const asset = await sparkApi<Asset>(cfg, `${cfg.assetsPath}/${slug}`);
-
-      // For prompt chains, concatenate steps
-      if (asset.chain_steps?.length) {
-        const steps = asset.chain_steps
-          .sort((a, b) => a.order - b.order)
-          .map((s) => `## Step ${s.order}: ${s.title}\n\n${s.content}`)
-          .join("\n\n---\n\n");
-        return { content: [{ type: "text" as const, text: steps }] };
+      if (cfg.assetsPath !== "/mcp/assets") {
+        // SPARK_MCP_MODE=false (local dev against the plain catalog API): no
+        // acquisition route there, so no receipt — content as the catalog serves it.
+        const asset = await fetchAsset(slug);
+        const text = asset.chain_steps?.length
+          ? [...asset.chain_steps]
+              .sort((a, b) => a.order - b.order)
+              .map((s) => `## Step ${s.order}: ${s.title}\n\n${s.content}`)
+              .join("\n\n---\n\n")
+          : asset.inline_content || asset.description_md || asset.short_description;
+        return { content: [{ type: "text" as const, text }] };
       }
 
-      // For assets with inline content
-      if (asset.inline_content) {
-        return {
-          content: [{ type: "text" as const, text: asset.inline_content }],
-        };
-      }
-
-      // Fallback to description
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: asset.description_md || asset.short_description,
+      const client = server.server.getClientVersion();
+      const res = await sparkApi<ContentResponse>(
+        cfg,
+        `${cfg.assetsPath}/${encodeURIComponent(slug)}/content`,
+        {
+          method: "POST",
+          body: {
+            client_name: client?.name,
+            client_version: client?.version,
+            search_query: searchThatLedTo(slug),
           },
-        ],
+        }
+      );
+      return {
+        content: [{ type: "text" as const, text: `${res.content}\n\n${res.receipt}` }],
       };
     }
   );
@@ -195,7 +215,10 @@ export function createServer(cfg: SparkConfig): McpServer {
       const params = new URLSearchParams();
       params.set("sort", sort);
       params.set("page_size", String(limit));
-      if (type) params.set("asset_type", type);
+      if (type) {
+        params.set("type", type);
+        params.set("asset_type", type);
+      }
 
       const res = await sparkApi<PaginatedResponse<AssetListItem>>(
         cfg,
@@ -366,7 +389,7 @@ export function createServer(cfg: SparkConfig): McpServer {
         {
           uri: uri.href,
           mimeType: "text/markdown",
-          text: formatAssetFull(cfg, await sparkApi<Asset>(cfg, `${cfg.assetsPath}/${slug as string}`)),
+          text: formatAssetFull(cfg, await fetchAsset(slug as string)),
         },
       ],
     })
@@ -378,7 +401,7 @@ export function createServer(cfg: SparkConfig): McpServer {
     async (uri, { type }) => {
       const res = await sparkApi<PaginatedResponse<AssetListItem>>(
         cfg,
-        `${cfg.assetsPath}?asset_type=${type as string}&sort=combo&page_size=20`
+        `${cfg.assetsPath}?type=${type as string}&asset_type=${type as string}&sort=combo&page_size=20`
       );
       const text = res.items.map((a) => formatAssetSummary(cfg, a)).join("\n\n---\n\n");
       return {

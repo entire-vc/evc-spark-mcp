@@ -8,6 +8,8 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { readFileSync } from "node:fs";
+
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { SparkConfig } from "../src/lib.js";
@@ -115,6 +117,8 @@ describe("search_assets", () => {
       arguments: { query: "x", type: "mcp_connector", domain: "development", sort: "rating", limit: 3 },
     });
     const url = calledUrl(spy);
+    // `/mcp/assets` reads `type`; sending only `asset_type` left the filter ignored.
+    expect(url.searchParams.get("type")).toBe("mcp_connector");
     expect(url.searchParams.get("asset_type")).toBe("mcp_connector");
     expect(url.searchParams.get("domain")).toBe("development");
     expect(url.searchParams.get("sort")).toBe("rating");
@@ -218,57 +222,95 @@ describe("search_assets", () => {
   });
 });
 
+// Contract fixtures: real responses of the Spark API routes, captured from the
+// backend (evc-spark `mcp_access.py`) against Postgres — not hand-written. The mocks
+// these tests used before modelled `Asset` whole, which is how every call from 1.1.0
+// on crashed against the real `{asset, meta}` wrapper without a single red test.
+const fixture = (name: string) =>
+  JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8"));
+const DETAIL = fixture("mcp-asset-detail.json");
+const CONTENT = fixture("mcp-asset-content.json");
+const CHAIN_DETAIL = fixture("mcp-chain-detail.json");
+const CHAIN_CONTENT = fixture("mcp-chain-content.json");
+
 describe("get_asset / get_asset_content", () => {
-  it("fetches the asset by slug under the MCP namespace", async () => {
-    const spy = mockFetch(() => jsonResponse(asset()));
+  it("unwraps the real /mcp/assets/{slug} detail and prints outcomes and a description", async () => {
+    const spy = mockFetch(() => jsonResponse(DETAIL));
     const c = await connect();
-    const out = text(await c.callTool({ name: "get_asset", arguments: { slug: "code-reviewer" } }));
-    expect(calledUrl(spy).pathname).toBe("/api/v1/mcp/assets/code-reviewer");
-    expect(out).toContain("# Code Reviewer");
+    const out = text(await c.callTool({ name: "get_asset", arguments: { slug: "contract-clean-code" } }));
+    expect(calledUrl(spy).pathname).toBe("/api/v1/mcp/assets/contract-clean-code");
+    expect(out).toContain("# Clean Code");
+    expect(out).toContain("**Outcomes:** no reports yet");
+    // description_md is empty for this skill: the catalog description is shown instead.
+    expect(out).toContain("## Description\n\nRefactor code for readability and maintainability.");
+    expect(out).not.toContain("undefined");
   });
 
-  it("honours SPARK_MCP_MODE=false by using the plain /assets namespace", async () => {
-    const spy = mockFetch(() => jsonResponse(asset()));
+  it("prints a chain's step titles from the real detail", async () => {
+    mockFetch(() => jsonResponse(CHAIN_DETAIL));
+    const c = await connect();
+    const out = text(await c.callTool({ name: "get_asset", arguments: { slug: "contract-blog-chain" } }));
+    expect(out).toContain("### Step 1: Outline");
+    expect(out).toContain("### Step 2: Draft");
+    expect(out).not.toContain("undefined");
+  });
+
+  it("honours SPARK_MCP_MODE=false by using the plain, unwrapped /assets detail", async () => {
+    const spy = mockFetch(() => jsonResponse(DETAIL.asset));
     const c = await connect({ ...TEST_CFG, assetsPath: "/assets" });
-    await c.callTool({ name: "get_asset", arguments: { slug: "x" } });
+    const out = text(await c.callTool({ name: "get_asset", arguments: { slug: "x" } }));
     expect(calledUrl(spy).pathname).toBe("/api/v1/assets/x");
+    expect(out).toContain("# Clean Code");
   });
 
-  it("returns inline content verbatim", async () => {
-    mockFetch(() => jsonResponse(asset({ inline_content: "You are a reviewer." })));
+  it("takes content through the content route and ends it with the receipt", async () => {
+    const spy = mockFetch(() => jsonResponse(CONTENT));
+    const c = await connect(KEYED_CFG);
+    const out = text(await c.callTool({ name: "get_asset_content", arguments: { slug: "contract-clean-code" } }));
+
+    const [url, init] = spy.mock.calls[0];
+    expect(String(url)).toBe("https://spark.test/api/v1/mcp/assets/contract-clean-code/content");
+    expect(init).toMatchObject({ method: "POST", headers: { "X-API-Key": "sk-test-123" } });
+    // The host client's own clientInfo reaches the server as the harness.
+    expect(JSON.parse(String(init!.body))).toMatchObject({ client_name: "test-client", client_version: "1.0.0" });
+    expect(out).toBe(`${CONTENT.content}\n\n${CONTENT.receipt}`);
+    expect(out).toMatch(/\n\napplication_id: [0-9A-Z]{26} — when you have applied this, call report_outcome\(/);
+  });
+
+  it("returns chain content in step order as the server rendered it", async () => {
+    mockFetch(() => jsonResponse(CHAIN_CONTENT));
     const c = await connect();
-    const out = text(await c.callTool({ name: "get_asset_content", arguments: { slug: "x" } }));
-    expect(out).toBe("You are a reviewer.");
+    const out = text(await c.callTool({ name: "get_asset_content", arguments: { slug: "contract-blog-chain" } }));
+    expect(out.startsWith("## Step 1: Outline\n\nWrite an outline.\n\n---\n\n## Step 2: Draft")).toBe(true);
   });
 
-  it("concatenates prompt chain steps in order", async () => {
-    mockFetch(() =>
-      jsonResponse(
-        asset({
-          chain_steps: [
-            { title: "Second", content: "b", order: 2 },
-            { title: "First", content: "a", order: 1 },
-          ],
-        })
-      )
+  it("sends the search whose results held the asset", async () => {
+    const spy = mockFetch((url) =>
+      url.includes("/content")
+        ? jsonResponse(CONTENT)
+        : jsonResponse(page([listItem({ slug: "contract-clean-code" })]))
     );
     const c = await connect();
-    const out = text(await c.callTool({ name: "get_asset_content", arguments: { slug: "x" } }));
-    expect(out).toBe("## Step 1: First\n\na\n\n---\n\n## Step 2: Second\n\nb");
+    await c.callTool({ name: "search_assets", arguments: { query: "clean code" } });
+    await c.callTool({ name: "search_assets", arguments: { query: "unrelated" } });
+    // the second search returned the same mock page, so it is the one that "led to" it
+    await c.callTool({ name: "get_asset_content", arguments: { slug: "contract-clean-code" } });
+    expect(JSON.parse(String(spy.mock.calls[2][1]!.body)).search_query).toBe("unrelated");
   });
 
-  it("falls back to the description when there is no inline content", async () => {
-    mockFetch(() => jsonResponse(asset({ description_md: "Long description." })));
+  it("sends no search when no search showed the asset", async () => {
+    const spy = mockFetch(() => jsonResponse(CONTENT));
     const c = await connect();
-    const out = text(await c.callTool({ name: "get_asset_content", arguments: { slug: "x" } }));
-    expect(out).toBe("Long description.");
+    await c.callTool({ name: "get_asset_content", arguments: { slug: "contract-clean-code" } });
+    expect(JSON.parse(String(spy.mock.calls[0][1]!.body)).search_query).toBeUndefined();
   });
 
-  it("falls back to the short description when the body is empty too", async () => {
-    mockFetch(() => jsonResponse(asset({ description_md: "", short_description: "Short." })));
-    const c = await connect();
-    const out = text(await c.callTool({ name: "get_asset_content", arguments: { slug: "x" } }));
-    expect(out).toBe("Short.");
+  it("explains a paid asset that was not purchased (402)", async () => {
+    mockFetch(() => jsonResponse({ detail: { error: "purchase_required" } }, 402));
+    const c = await connect(KEYED_CFG);
+    const res = await c.callTool({ name: "get_asset_content", arguments: { slug: "paid" } });
+    expect(res.isError).toBe(true);
+    expect(text(res)).toContain("paid asset and your account has not purchased it");
   });
 });
 
@@ -456,7 +498,7 @@ describe("report_outcome", () => {
 
 describe("resources", () => {
   it("renders an asset resource as markdown", async () => {
-    mockFetch(() => jsonResponse(asset()));
+    mockFetch(() => jsonResponse({ asset: asset(), meta: { trial: true } }));
     const c = await connect();
     const res = await c.readResource({ uri: "spark://assets/code-reviewer" });
     expect(res.contents[0].mimeType).toBe("text/markdown");
