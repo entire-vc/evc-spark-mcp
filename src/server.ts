@@ -109,7 +109,7 @@ export function createServer(cfg: SparkConfig): McpServer {
 
   server.tool(
     "get_asset",
-    "Get full details of a Spark asset by its slug. Returns description, content, files, ratings, and more.",
+    "Get full details of a Spark asset by its slug. Returns description, content, files, outcome reports, and more.",
     {
       slug: z.string().describe("Asset slug (e.g. 'vb-seo-expert', 'vb-python-expert')"),
     },
