@@ -10,7 +10,7 @@
  *   list_popular      — top assets by combo score or downloads
  *   list_categories   — available domains and AI tags
  *   get_api_key_info  — check API key status and daily usage
- *   submit_review     — submit an agent review after using an asset
+ *   report_outcome    — report what happened when you applied fetched content
  *
  * Resources:
  *   spark://assets/{slug}   — asset content as text
