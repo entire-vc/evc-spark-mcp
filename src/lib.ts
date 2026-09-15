@@ -104,6 +104,8 @@ export interface AssetOutcomes {
 
 export interface Asset extends AssetListItem {
   description_md: string;
+  long_jtbd_description?: string | null;
+  short_geo_description?: string | null;
   inline_content?: string | null;
   version: string;
   files: { filename: string; size_bytes: number }[];
@@ -111,6 +113,21 @@ export interface Asset extends AssetListItem {
   chain_steps?: { title: string; content: string; order: number }[];
   external_source_name?: string | null;
   external_source_url?: string | null;
+}
+
+/** `GET /mcp/assets/{slug}` wraps the detail; `GET /assets/{slug}` does not. */
+export type AssetDetailResponse = Asset | { asset: Asset; meta?: { trial?: boolean } };
+
+export function unwrapAsset(body: AssetDetailResponse): Asset {
+  return "asset" in body && body.asset && typeof body.asset === "object" ? body.asset : (body as Asset);
+}
+
+/** `POST /mcp/assets/{slug}/content`: the content taken, and the receipt a report names. */
+export interface ContentResponse {
+  content: string;
+  application_id: string;
+  receipt: string;
+  meta?: { trial?: boolean; assets_served_today?: number | null };
 }
 
 export interface PaginatedResponse<T> {
@@ -142,15 +159,31 @@ export function authHeaders(cfg: SparkConfig): Record<string, string> {
   return h;
 }
 
-export async function sparkApi<T = unknown>(cfg: SparkConfig, path: string): Promise<T> {
+export async function sparkApi<T = unknown>(
+  cfg: SparkConfig,
+  path: string,
+  init: { method?: "GET" | "POST"; body?: unknown } = {}
+): Promise<T> {
   const url = `${cfg.apiUrl}${path}`;
-  const res = await fetch(url, { headers: authHeaders(cfg) });
+  const res = await fetch(
+    url,
+    init.method === "POST"
+      ? {
+          method: "POST",
+          headers: { ...authHeaders(cfg), "Content-Type": "application/json" },
+          body: JSON.stringify(init.body ?? {}),
+        }
+      : { headers: authHeaders(cfg) }
+  );
 
   if (res.status === 401) {
     const body = (await res.json().catch(() => ({}))) as Record<string, string>;
     throw new Error(
       `Spark API key invalid. Get your key: ${body.signup_url || "https://spark.entire.vc/create"}`
     );
+  }
+  if (res.status === 402) {
+    throw new Error("This is a paid asset and your account has not purchased it: https://spark.entire.vc");
   }
   if (res.status === 429) {
     const body = (await res.json().catch(() => ({}))) as Record<string, string>;
@@ -223,6 +256,21 @@ export function formatAssetSummary(cfg: SparkConfig, a: AssetListItem): string {
     .join("\n");
 }
 
+/**
+ * The description a detail view prints — same fallback as the hosted server
+ * (`app/services/mcp_content.py::description_text`): most `ag-*` skills have an empty
+ * README-derived `description_md`.
+ */
+export function descriptionText(a: Asset): string {
+  return (
+    a.description_md ||
+    a.long_jtbd_description ||
+    a.short_geo_description ||
+    a.short_description ||
+    ""
+  );
+}
+
 export function formatAssetFull(cfg: SparkConfig, a: Asset): string {
   const sections: string[] = [
     `# ${a.title}`,
@@ -252,7 +300,7 @@ export function formatAssetFull(cfg: SparkConfig, a: Asset): string {
     sections.push("", "## Endpoints", "", ...endpointLines.slice(1));
   }
 
-  sections.push("", "## Description", "", a.description_md);
+  sections.push("", "## Description", "", descriptionText(a));
 
   if (a.inline_content) {
     sections.push("", "## Content", "", a.inline_content);

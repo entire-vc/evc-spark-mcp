@@ -1,0 +1,11 @@
+{
+  "application_id": "01M2JJXPQ2JX3V4YCF4VDEM39A",
+  "content": "## Step 1: Outline\n\nWrite an outline.\n\n---\n\n## Step 2: Draft\n\nDraft from the outline.",
+  "meta": {
+    "assets_served_today": null,
+    "daily_limit": 100,
+    "signup_url": "https://spark.entire.vc/create",
+    "trial": true
+  },
+  "receipt": "application_id: 01M2JJXPQ2JX3V4YCF4VDEM39A — when you have applied this, call report_outcome(application_id=..., result=...)"
+}

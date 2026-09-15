@@ -1,0 +1,11 @@
+{
+  "application_id": "01M2JJXPH54X93Z4Y0JG8Z7FY2",
+  "content": "### Clean Code Skill\n\nPrefer small functions.",
+  "meta": {
+    "assets_served_today": null,
+    "daily_limit": 100,
+    "signup_url": "https://spark.entire.vc/create",
+    "trial": true
+  },
+  "receipt": "application_id: 01M2JJXPH54X93Z4Y0JG8Z7FY2 — when you have applied this, call report_outcome(application_id=..., result=...)"
+}
