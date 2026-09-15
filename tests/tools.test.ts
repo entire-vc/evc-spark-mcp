@@ -56,8 +56,8 @@ describe("tool registration", () => {
       "get_asset_content",
       "list_categories",
       "list_popular",
+      "report_outcome",
       "search_assets",
-      "submit_review",
     ]);
   });
 
@@ -365,87 +365,92 @@ describe("get_api_key_info", () => {
   });
 });
 
-describe("submit_review", () => {
-  const review = { slug: "code-reviewer", session_id: "sess-1", outcome: "success" };
+describe("report_outcome", () => {
+  const APPROVED_NOTICE =
+    "Fields `task`, `note`, `changed_what`, `failed_at`, `expected`, `got` are shown to the " +
+    "asset's author. Do not include client data, private paths, keys, emails or URLs with " +
+    "tokens. Your identity is never shown to the author.";
+  const report = {
+    application_id: "01M2JFTQ7ZYPXWF7J36X4MGX6G",
+    result: "broke",
+    task: "convert a PDF to markdown",
+    failed_at: "step 2: pdftotext missing",
+  };
 
-  it("POSTs the review to the agent-review endpoint with the API key", async () => {
-    const spy = mockFetch(() => jsonResponse({ id: "r1", outcome: "success", created_at: "now" }, 201));
+  it("carries the approved privacy notice verbatim and the same required fields as the hosted server", async () => {
+    mockFetch(() => jsonResponse({}));
+    const c = await connect();
+    const { tools } = await c.listTools();
+    const tool = tools.find((t) => t.name === "report_outcome")!;
+    expect(tool.description).toContain(APPROVED_NOTICE);
+    expect([...(tool.inputSchema.required ?? [])].sort()).toEqual(["application_id", "result", "task"]);
+    expect(Object.keys(tool.inputSchema.properties ?? {}).sort()).toEqual([
+      "application_id",
+      "changed_what",
+      "expected",
+      "failed_at",
+      "got",
+      "model",
+      "note",
+      "result",
+      "task",
+    ]);
+  });
+
+  it("POSTs to the application's outcome endpoint with the API key and prints the server's line", async () => {
+    const spy = mockFetch(() =>
+      jsonResponse({ message: "Outcome recorded: broke for application_id 01M2JFTQ7ZYPXWF7J36X4MGX6G" }, 201)
+    );
     const c = await connect(KEYED_CFG);
-    const out = text(await c.callTool({ name: "submit_review", arguments: review }));
+    const out = text(await c.callTool({ name: "report_outcome", arguments: report }));
 
     const [url, init] = spy.mock.calls[0];
-    expect(String(url)).toBe("https://spark.test/api/v1/mcp/assets/code-reviewer/agent-review");
+    expect(String(url)).toBe(
+      "https://spark.test/api/v1/mcp/applications/01M2JFTQ7ZYPXWF7J36X4MGX6G/outcome"
+    );
     expect(init).toMatchObject({
       method: "POST",
       headers: { "Content-Type": "application/json", "X-API-Key": "sk-test-123" },
     });
-    expect(JSON.parse(String(init!.body))).toEqual({ session_id: "sess-1", outcome: "success" });
-    expect(out).toContain('✓ Review Submitted for "code-reviewer"');
-    expect(out).toContain("ID: r1");
+    expect(JSON.parse(String(init!.body))).toEqual({
+      result: "broke",
+      task: "convert a PDF to markdown",
+      failed_at: "step 2: pdftotext missing",
+    });
+    expect(out).toBe("Outcome recorded: broke for application_id 01M2JFTQ7ZYPXWF7J36X4MGX6G");
   });
 
   it("omits the API key header for an anonymous caller", async () => {
-    const spy = mockFetch(() => jsonResponse({ id: "r1", outcome: "success", created_at: "now" }, 201));
+    const spy = mockFetch(() => jsonResponse({ message: "ok" }, 201));
     const c = await connect(TEST_CFG);
-    await c.callTool({ name: "submit_review", arguments: review });
+    await c.callTool({ name: "report_outcome", arguments: report });
     expect(spy.mock.calls[0][1]!.headers).not.toHaveProperty("X-API-Key");
   });
 
-  it("includes only the optional scores that were supplied", async () => {
-    const spy = mockFetch(() => jsonResponse({ id: "r1", outcome: "partial", created_at: "now" }, 201));
-    const c = await connect(KEYED_CFG);
-    const out = text(
-      await c.callTool({
-        name: "submit_review",
-        arguments: { ...review, outcome: "partial", value: 4, accuracy: 5 },
-      })
+  it("passes the server's named refusal through as a tool error", async () => {
+    mockFetch(() =>
+      jsonResponse({ detail: { error: "receipt_not_found", message: "no content fetch with this application_id" } }, 422)
     );
-    expect(JSON.parse(String(spy.mock.calls[0][1]!.body))).toEqual({
-      session_id: "sess-1",
-      outcome: "partial",
-      value: 4,
-      accuracy: 5,
-    });
-    expect(out).toContain("Outcome: partial | Value: 4/5 | Accuracy: 5/5");
-    expect(out).not.toContain("Reliability");
-  });
-
-  it("says Updated rather than Submitted when the review already existed (200)", async () => {
-    mockFetch(() => jsonResponse({ id: "r1", outcome: "success", created_at: "now" }, 200));
     const c = await connect(KEYED_CFG);
-    const out = text(await c.callTool({ name: "submit_review", arguments: review }));
-    expect(out).toContain('✓ Review Updated for "code-reviewer"');
-  });
-
-  it("returns a friendly message (not an error) for an unknown slug", async () => {
-    mockFetch(() => jsonResponse({ detail: "not found" }, 404));
-    const c = await connect(KEYED_CFG);
-    const res = await c.callTool({ name: "submit_review", arguments: { ...review, slug: "nope" } });
-    expect(res.isError).toBeFalsy();
-    expect(text(res)).toBe('Asset "nope" not found. Check the slug.');
+    const res = await c.callTool({ name: "report_outcome", arguments: report });
+    expect(res.isError).toBe(true);
+    expect(text(res)).toBe("receipt_not_found: no content fetch with this application_id");
   });
 
   it("errors on any other non-ok status", async () => {
     mockFetch(() => new Response("boom", { status: 500 }));
     const c = await connect(KEYED_CFG);
-    const res = await c.callTool({ name: "submit_review", arguments: review });
+    const res = await c.callTool({ name: "report_outcome", arguments: report });
     expect(res.isError).toBe(true);
-    expect(text(res)).toContain("Review submit failed: 500");
+    expect(text(res)).toContain("Outcome report failed: 500");
   });
 
-  it("rejects an out-of-range score before calling the API", async () => {
+  it("rejects an unknown result before calling the API", async () => {
     const spy = mockFetch(() => jsonResponse({}));
     const c = await connect(KEYED_CFG);
-    const res = await c.callTool({ name: "submit_review", arguments: { ...review, value: 9 } });
+    const res = await c.callTool({ name: "report_outcome", arguments: { ...report, result: "partial" } });
     expect(res.isError).toBe(true);
     expect(spy).not.toHaveBeenCalled();
-  });
-
-  it("rejects an unknown outcome", async () => {
-    mockFetch(() => jsonResponse({}));
-    const c = await connect(KEYED_CFG);
-    const res = await c.callTool({ name: "submit_review", arguments: { ...review, outcome: "meh" } });
-    expect(res.isError).toBe(true);
   });
 });
 

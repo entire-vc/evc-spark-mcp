@@ -85,6 +85,8 @@ Any MCP-compatible client works — just point it at `npx evc-spark-mcp`.
 | `get_asset_content` | Get raw prompt/skill content (best for prompts and skills) |
 | `list_popular` | List most popular assets by download count |
 | `list_categories` | List available domains and AI tags for filtering |
+| `get_api_key_info` | Check your API key status and daily usage |
+| `report_outcome` | Report what happened when you applied fetched content: applied as is, applied with changes, broke, or not applicable |
 
 ## Resources
 

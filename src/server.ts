@@ -23,7 +23,29 @@ import {
 } from "./lib.js";
 
 export const SERVER_NAME = "spark-mcp";
-export const SERVER_VERSION = "1.1.0";
+export const SERVER_VERSION = "1.2.0";
+
+const OUTCOME_RESULTS = [
+  "applied_as_is",
+  "applied_with_changes",
+  "broke",
+  "not_applicable",
+] as const;
+
+// Approved verbatim on #0f9f6735 item 2 (15.09.2026). Identical to PRIVACY_NOTICE in the
+// hosted server (backend/app/services/outcome_reports.py) — the two servers drifted once.
+export const PRIVACY_NOTICE =
+  "Fields `task`, `note`, `changed_what`, `failed_at`, `expected`, `got` are shown to " +
+  "the asset's author. Do not include client data, private paths, keys, emails or URLs " +
+  "with tokens. Your identity is never shown to the author.";
+
+export const REPORT_OUTCOME_DESCRIPTION =
+  "Report what happened when you applied an asset you fetched with get_asset_content. " +
+  "Call it once you know: applied as is, applied with changes, broke, or not applicable. " +
+  "The next agent choosing this asset reads the outcomes in search results. " +
+  "Reports made with an API key count; anonymous ones are stored as unverified. " +
+  "Calling again with the same application_id updates your report.\n\n" +
+  PRIVACY_NOTICE;
 
 const ASSET_TYPES = [
   "agent",
@@ -259,93 +281,76 @@ export function createServer(cfg: SparkConfig): McpServer {
   );
 
   server.tool(
-    "submit_review",
-    "Submit a review for a Spark asset after using it. Helps improve ranking for future agent recommendations. session_id should be a stable identifier for your current session/run.",
+    "report_outcome",
+    REPORT_OUTCOME_DESCRIPTION,
     {
-      slug: z.string().describe("Asset slug to review (same slug used in get_asset)"),
-      session_id: z
+      application_id: z
         .string()
-        .max(128)
-        .describe("Your session or run ID (for deduplication — one review per session per asset)"),
-      outcome: z
-        .enum(["success", "failure", "partial"])
+        .describe("The application_id printed at the end of get_asset_content."),
+      result: z
+        .enum(OUTCOME_RESULTS)
         .describe(
-          "Did the asset accomplish the job? success=fully worked, partial=partially helped, failure=did not help"
+          "applied_as_is: applied without edits, task solved. " +
+            "applied_with_changes: had to edit it, then solved (requires changed_what). " +
+            "broke: tried to apply and it failed (requires failed_at). " +
+            "not_applicable: read it and did not apply, it does something else " +
+            "(requires expected and got)."
         ),
-      value: z
-        .number()
-        .int()
-        .min(1)
-        .max(5)
+      task: z.string().describe("What you were trying to do, one phrase (≤ 200)."),
+      changed_what: z
+        .string()
         .optional()
-        .describe("How valuable was the result? 1=useless, 5=excellent"),
-      reliability: z
-        .number()
-        .int()
-        .min(1)
-        .max(5)
+        .describe("applied_with_changes: what you changed (≤ 200)."),
+      failed_at: z
+        .string()
         .optional()
-        .describe("How reliable/reproducible? 1=flaky, 5=always works"),
-      accuracy: z
-        .number()
-        .int()
-        .min(1)
-        .max(5)
+        .describe(
+          "broke: the step, tool or command that failed, and the error class (≤ 200)."
+        ),
+      expected: z
+        .string()
         .optional()
-        .describe("How accurate/correct was the output? 1=many errors, 5=perfect"),
-      notes: z.string().max(500).optional().describe("Optional notes (no PII)"),
+        .describe("not_applicable: what you were looking for (≤ 200)."),
+      got: z.string().optional().describe("not_applicable: what it actually does (≤ 200)."),
+      note: z.string().optional().describe("Anything else worth knowing (≤ 300)."),
+      model: z
+        .string()
+        .optional()
+        .describe("The model you run on, if you know it. Shown, never ranked."),
     },
-    async ({ slug, session_id, outcome, value, reliability, accuracy, notes }) => {
-      const body = {
-        session_id,
-        outcome,
-        ...(value !== undefined && { value }),
-        ...(reliability !== undefined && { reliability }),
-        ...(accuracy !== undefined && { accuracy }),
-        ...(notes !== undefined && { notes }),
-      };
+    async ({ application_id, ...report }) => {
+      const res = await fetch(
+        `${cfg.apiUrl}/mcp/applications/${encodeURIComponent(application_id)}/outcome`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            ...(cfg.apiKey ? { "X-API-Key": cfg.apiKey } : {}),
+          },
+          body: JSON.stringify(report),
+        }
+      );
 
-      const res = await fetch(`${cfg.apiUrl}/mcp/assets/${slug}/agent-review`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          ...(cfg.apiKey ? { "X-API-Key": cfg.apiKey } : {}),
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (res.status === 404) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Asset "${slug}" not found. Check the slug.`,
-            },
-          ],
+      if (res.status === 422 || res.status === 401) {
+        // The server names the reason ({detail: {error, message}}); pass it on unchanged
+        // so both servers refuse in the same words.
+        const body = (await res.json().catch(() => ({}))) as {
+          detail?: { error?: string; message?: string } | unknown;
         };
+        const d = body.detail as { error?: string; message?: string } | undefined;
+        const reason =
+          d && typeof d === "object" && d.error
+            ? `${d.error}: ${d.message ?? ""}`.trim()
+            : `report refused: ${res.status}`;
+        return { isError: true, content: [{ type: "text" as const, text: reason }] };
       }
       if (!res.ok) {
-        throw new Error(`Review submit failed: ${res.status}`);
+        throw new Error(`Outcome report failed: ${res.status}`);
       }
 
-      const data = (await res.json()) as { id: string; outcome: string; created_at: string };
-      const verb = res.status === 201 ? "Submitted" : "Updated";
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: [
-              `✓ Review ${verb} for "${slug}"`,
-              `Outcome: ${outcome}${value !== undefined ? ` | Value: ${value}/5` : ""}${reliability !== undefined ? ` | Reliability: ${reliability}/5` : ""}${accuracy !== undefined ? ` | Accuracy: ${accuracy}/5` : ""}`,
-              `ID: ${data.id}`,
-              "",
-              "Thank you — this helps improve recommendations for all agents.",
-            ].join("\n"),
-          },
-        ],
-      };
+      const data = (await res.json()) as { message: string };
+      return { content: [{ type: "text" as const, text: data.message }] };
     }
   );
 
