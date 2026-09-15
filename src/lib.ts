@@ -83,6 +83,23 @@ export interface AssetListItem {
   is_verified: boolean;
   created_at: string;
   endpoints?: AssetEndpoints;
+  outcomes?: AssetOutcomes | null;
+}
+
+/**
+ * What agents that applied the asset reported. `line` is rendered by the Spark API —
+ * the same text the hosted MCP server prints — so this package never re-derives it.
+ */
+export interface AssetOutcomes {
+  acquisitions: number;
+  applied_as_is: number;
+  applied_with_changes: number;
+  broke: number;
+  not_applicable: number;
+  top_failed_at?: string | null;
+  last_report_on?: string | null;
+  harnesses?: { name: string; reports: number }[];
+  line: string;
 }
 
 export interface Asset extends AssetListItem {
@@ -174,17 +191,25 @@ export function formatEndpoints(e: AssetEndpoints | undefined, indent: string): 
   return lines.length > 1 ? lines : [];
 }
 
+/**
+ * The `Outcomes:` line. It replaces `Rating: 0.0/5 (0)`, which read as a verdict of
+ * zero on assets nobody had reported on. An API that predates the field still gets a
+ * true line: no reports is what it has.
+ */
+export function formatOutcomes(a: AssetListItem): string {
+  return a.outcomes?.line || "Outcomes: no reports yet";
+}
+
 export function formatAssetSummary(cfg: SparkConfig, a: AssetListItem): string {
   const badges = [a.is_featured ? "Featured" : "", a.is_verified ? "Verified" : ""]
     .filter(Boolean)
     .join(", ");
   const badgeStr = badges ? ` [${badges}]` : "";
 
-  const agentRatingStr = (a.agent_rating_count ?? 0) > 0 ? ` + ${a.agent_rating_count} agent` : "";
-
   return [
     `**${a.title}**${badgeStr}`,
-    `Score: ${a.combo_score?.toFixed(2) ?? "N/A"} | Rating: ${a.rating_avg.toFixed(1)}/5 (${a.rating_count} human${agentRatingStr}) | Downloads: ${a.downloads_count}`,
+    `Score: ${a.combo_score?.toFixed(2) ?? "N/A"} | Downloads: ${a.downloads_count}`,
+    formatOutcomes(a),
     `${a.short_description}`,
     `Price: ${a.pricing_type === "free" ? "Free" : `${a.price_credits} EVC`}`,
     a.ai_tags.length ? `AI Models: ${a.ai_tags.join(", ")}` : "",
@@ -203,7 +228,7 @@ export function formatAssetFull(cfg: SparkConfig, a: Asset): string {
     `# ${a.title}`,
     "",
     `**Type:** ${a.type}`,
-    `**Rating:** ${a.rating_avg.toFixed(1)}/5 (${a.rating_count} ratings)`,
+    `**Outcomes:** ${formatOutcomes(a).replace(/^Outcomes: /, "")}`,
     `**Downloads:** ${a.downloads_count}`,
     `**Price:** ${a.pricing_type === "free" ? "Free" : `${a.price_credits} EVC`}`,
     `**Version:** ${a.version}`,

@@ -203,12 +203,17 @@ describe("formatAssetSummary", () => {
     expect(formatAssetSummary(TEST_CFG, listItem({ combo_score: 0.8765 }))).toContain("Score: 0.88");
   });
 
-  it("appends the agent rating count only when there are agent ratings", () => {
-    expect(formatAssetSummary(TEST_CFG, listItem())).toContain("(8 human)");
-    expect(formatAssetSummary(TEST_CFG, listItem({ agent_rating_count: 3 }))).toContain(
-      "(8 human + 3 agent)"
-    );
-    expect(formatAssetSummary(TEST_CFG, listItem({ agent_rating_count: 0 }))).toContain("(8 human)");
+  it("prints the Outcomes line from the API instead of a star rating", () => {
+    const line = "Outcomes: broke 1 (at: npm install, ENOENT) · applied 5 · last 2026-09-12";
+    const out = formatAssetSummary(TEST_CFG, listItem({ outcomes: outcomeFields(line) }));
+    expect(out.split("\n")).toContain(line);
+    expect(out).not.toContain("Rating");
+  });
+
+  it("says no reports yet, never 0.0/5, when the API sends no outcomes", () => {
+    const out = formatAssetSummary(TEST_CFG, listItem({ rating_avg: 0, rating_count: 0 }));
+    expect(out.split("\n")).toContain("Outcomes: no reports yet");
+    expect(out).not.toContain("0.0/5");
   });
 
   it("prices free vs paid assets", () => {
@@ -259,11 +264,20 @@ describe("formatAssetSummary", () => {
 });
 
 describe("formatAssetFull", () => {
+  it("renders the API's Outcomes line as a bold field", () => {
+    const out = formatAssetFull(
+      TEST_CFG,
+      asset({ outcomes: outcomeFields("Outcomes: no reports yet (7 acquisitions)") })
+    );
+    expect(out).toContain("**Outcomes:** no reports yet (7 acquisitions)");
+  });
+
   it("renders the header block with the permalink", () => {
     const out = formatAssetFull(TEST_CFG, asset());
     expect(out).toContain("# Code Reviewer");
     expect(out).toContain("**Type:** agent");
-    expect(out).toContain("**Rating:** 4.5/5 (8 ratings)");
+    expect(out).toContain("**Outcomes:** no reports yet");
+    expect(out).not.toContain("Rating");
     expect(out).toContain("**URL:** https://spark.test/agents/code-reviewer");
     expect(out).toContain("## Description");
   });
@@ -337,3 +351,14 @@ describe("trialFooter", () => {
     expect(trialFooter(5, true)).toContain("https://spark.entire.vc/create");
   });
 });
+
+function outcomeFields(line: string) {
+  return {
+    acquisitions: 7,
+    applied_as_is: 0,
+    applied_with_changes: 0,
+    broke: 0,
+    not_applicable: 0,
+    line,
+  };
+}
