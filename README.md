@@ -4,6 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![MCP](https://img.shields.io/badge/MCP-compatible-00A67E)](https://modelcontextprotocol.io)
 [![Install via Spark](https://spark.entire.vc/badges/spark-mcp-server/install.svg)](https://spark.entire.vc/assets/spark-mcp-server?utm_source=github&utm_medium=readme)
+[![Smithery](https://img.shields.io/badge/Smithery-entirevc%2Fspark-F26B21)](https://smithery.ai/servers/entirevc/spark)
 
 MCP server for [Spark](https://spark.entire.vc) — your AI toolbox for real work. Search and discover agents, skills, prompts, bundles, and MCP connectors.
 
