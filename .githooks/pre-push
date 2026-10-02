@@ -1,0 +1,3 @@
+#!/bin/sh
+# Run the topology gate before every push. Enable: git config core.hooksPath .githooks
+exec python3 scripts/topology_gate.py
