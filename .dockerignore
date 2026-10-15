@@ -1,0 +1,15 @@
+.git
+.github
+.githooks
+.topology-gate
+node_modules
+dist
+tests
+scripts
+coverage
+.npmcache
+.npmrc
+.env
+.env.*
+*.tgz
+*.log
