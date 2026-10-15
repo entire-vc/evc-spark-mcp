@@ -43,20 +43,45 @@ Add to `claude_desktop_config.json`:
 }
 ```
 
-### Cursor
+### Install in Cursor
 
-Add to Cursor MCP settings:
+This repository includes a Cursor plugin with a remote Spark MCP server and the
+`use-spark` skill. No Node.js process or API key is needed for anonymous access.
 
-```json
-{
-  "mcpServers": {
-    "spark": {
-      "command": "npx",
-      "args": ["-y", "evc-spark-mcp"]
-    }
-  }
-}
+To test a local install:
+
+```bash
+git clone https://github.com/entire-vc/evc-spark-mcp.git
+mkdir -p ~/.cursor/plugins/local/spark
+cp -R evc-spark-mcp/.cursor-plugin evc-spark-mcp/mcp.json \
+  evc-spark-mcp/server.json evc-spark-mcp/skills ~/.cursor/plugins/local/spark/
 ```
+
+Restart Cursor or run **Developer: Reload Window**, then open **Customize** and
+confirm the `use-spark` skill and Spark MCP server. Enable the server if prompted;
+its tools include `search_assets`, `get_asset`, `get_asset_content`, and
+`report_outcome`. Try: “Find a Spark skill for reviewing Python code.”
+Local plugin imports must be allowed by your team administrator. Copy the files:
+Cursor skips symlinks whose target is outside `~/.cursor/plugins/local`.
+See [Cursor's local plugin instructions](https://cursor.com/docs/plugins#test-plugins-locally).
+
+For optional authenticated access, set `SPARK_API_KEY` in the environment used to
+launch Cursor and restart it. `mcp.json` uses Cursor's `${env:SPARK_API_KEY}`
+interpolation for `X-API-Key`; leave it unset or empty for anonymous access. Never
+put a key in the repository. Get a key from your [Spark profile](https://spark.entire.vc/profile).
+
+Plugin contents:
+
+| Path | Purpose |
+|------|---------|
+| `.cursor-plugin/plugin.json` | Cursor manifest with explicit relative component paths |
+| `mcp.json` | Streamable HTTP connection to `https://spark.entire.vc/mcp/` |
+| `skills/use-spark/SKILL.md` | Search, inspect, fetch, apply, and report outcomes |
+| `server.json` | Remote server metadata; its version matches the plugin version |
+
+The plugin follows the hosted server version (`4.0.4`), independently of the npm
+stdio package version. When updating the hosted version, update `server.json` and the plugin manifest
+together; `npm test` checks that they match.
 
 ### OpenClaw
 
