@@ -160,6 +160,17 @@ npm run inspect
 - 💬 [Discussions](https://github.com/entire-vc/.github/discussions)
 - 📧 in@entire.vc
 
+<details>
+<summary>Find us in other directories</summary>
+
+<br>
+
+[![MCP Badge](https://lobehub.com/badge/mcp/entire-vc-evc-spark-mcp)](https://lobehub.com/mcp/entire-vc-evc-spark-mcp)
+[![Glama](https://img.shields.io/badge/Glama-listed-1F2937)](https://glama.ai/mcp/servers/entire-vc/evc-spark-mcp)
+[![Smithery](https://img.shields.io/badge/Smithery-listed-F26B21)](https://smithery.ai/servers/entirevc/spark)
+
+</details>
+
 ## License
 
 MIT — Copyright (c) 2026 Entire VC
