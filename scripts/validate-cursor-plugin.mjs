@@ -30,6 +30,12 @@ export function validatePlugin(root) {
   const skill = readFileSync(resolve(skills, "use-spark/SKILL.md"), "utf8");
   assert.match(skill, /^---\nname: use-spark\ndescription: .+\n---\n/);
   const mcp = readJson(plugin.mcpServers);
+  readJson(".mcp.json");
+  assert.deepEqual(
+    readFileSync(resolve(root, ".mcp.json")),
+    readFileSync(resolve(root, "mcp.json")),
+    ".mcp.json must match mcp.json byte for byte",
+  );
   const remote = server.remotes.find((remote) => remote.type === "streamable-http");
   assert.equal(mcp.mcpServers.spark.url, "https://spark.entire.vc/mcp/");
   assert.equal(mcp.mcpServers.spark.url, remote.url);

@@ -9,7 +9,7 @@ const copies: string[] = [];
 function fixture() {
   const dir = mkdtempSync(resolve(tmpdir(), "spark-cursor-test-"));
   copies.push(dir);
-  for (const path of [".cursor-plugin", "mcp.json", "server.json", "skills"]) {
+  for (const path of [".cursor-plugin", "mcp.json", ".mcp.json", "server.json", "skills"]) {
     cpSync(resolve(root, path), resolve(dir, path), { recursive: true });
   }
   return dir;
@@ -40,6 +40,19 @@ describe("Cursor plugin distribution", () => {
     const dir = fixture();
     writeFileSync(resolve(dir, "mcp.json"), "{");
     expect(() => validatePlugin(dir)).toThrow();
+  });
+  it("rejects a malformed auto-detected MCP config", () => {
+    const dir = fixture();
+    writeFileSync(resolve(dir, ".mcp.json"), "{");
+    expect(() => validatePlugin(dir)).toThrow();
+  });
+  it("rejects an injected auto-detection config mismatch (negative control)", () => {
+    const dir = fixture();
+    const path = resolve(dir, ".mcp.json");
+    const config = JSON.parse(readFileSync(path, "utf8"));
+    config.mcpServers.spark.url = "https://example.com/mcp/";
+    writeFileSync(path, JSON.stringify(config));
+    expect(() => validatePlugin(dir)).toThrow(".mcp.json must match mcp.json byte for byte");
   });
   it("rejects an embedded credential", () => {
     const dir = fixture();
