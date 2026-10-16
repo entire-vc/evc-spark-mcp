@@ -1,0 +1,21 @@
+{
+  "name": "spark",
+  "description": "Search and use agents, skills, prompts and MCP connectors from the Spark marketplace.",
+  "version": "4.0.4",
+  "author": {
+    "name": "Entire VC",
+    "email": "dev@entire.vc"
+  },
+  "homepage": "https://spark.entire.vc",
+  "repository": "https://github.com/entire-vc/evc-spark-mcp",
+  "license": "MIT",
+  "keywords": [
+    "spark",
+    "marketplace",
+    "mcp",
+    "skills",
+    "prompts"
+  ],
+  "skills": "./skills",
+  "mcpServers": "./mcp.json"
+}

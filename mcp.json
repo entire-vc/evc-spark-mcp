@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "spark": {
+      "url": "https://spark.entire.vc/mcp/",
+      "headers": {
+        "X-API-Key": "${env:SPARK_API_KEY}"
+      }
+    }
+  }
+}

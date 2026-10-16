@@ -1,0 +1,26 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.entire-vc/spark",
+  "title": "Spark - AI Assets Marketplace",
+  "description": "Search and fetch AI agents, skills, prompts and MCP connectors from the Spark marketplace.",
+  "websiteUrl": "https://spark.entire.vc",
+  "repository": {
+    "url": "https://github.com/entire-vc/evc-spark-mcp",
+    "source": "github"
+  },
+  "version": "4.0.4",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://spark.entire.vc/mcp/",
+      "headers": [
+        {
+          "name": "X-API-Key",
+          "description": "Optional Spark API key (free, spark.entire.vc/profile, MCP Access tab). Without it the server works anonymously.",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}
