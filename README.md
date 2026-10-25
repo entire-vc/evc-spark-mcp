@@ -170,7 +170,7 @@ npm run inspect
 |---------|-------------|------|
 | **Local Sync** | Vault ↔ AI dev tools sync | [repo](https://github.com/entire-vc/evc-local-sync-plugin) |
 | **Team Relay** | Self-hosted collaboration server | [repo](https://github.com/entire-vc/evc-team-relay) |
-| **Team Relay Plugin** | Obsidian plugin for Team Relay | [repo](https://github.com/entire-vc/evc-team-relay-obsidian-plugin) |
+| **Team Relay Sync** | Obsidian plugin for Team Relay | [install](https://community.obsidian.md/plugins/team-relay-sync) · [repo](https://github.com/entire-vc/evc-team-relay-obsidian) |
 | **OpenClaw Skill** | AI agent ↔ vault access | [repo](https://github.com/entire-vc/evc-team-relay-openclaw-skill) |
 | **Spark MCP** ← you are here | MCP server for Spark catalog | this repo |
 
