@@ -79,7 +79,7 @@ Plugin contents:
 | `skills/use-spark/SKILL.md` | Search, inspect, fetch, apply, and report outcomes |
 | `server.json` | Remote server metadata; its version matches the plugin version |
 
-The plugin follows the hosted server version (`4.0.4`), independently of the npm
+The plugin follows the hosted server version (`4.1.2`), independently of the npm
 stdio package version. When updating the hosted version, update `server.json` and the plugin manifest
 together; `npm test` checks that they match.
 
