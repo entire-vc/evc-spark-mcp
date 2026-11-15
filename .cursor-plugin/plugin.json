@@ -1,7 +1,7 @@
 {
   "name": "spark",
   "description": "Search and use agents, skills, prompts and MCP connectors from the Spark marketplace.",
-  "version": "4.0.4",
+  "version": "4.1.2",
   "author": {
     "name": "Entire VC",
     "email": "dev@entire.vc"

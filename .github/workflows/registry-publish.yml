@@ -1,0 +1,70 @@
+name: Publish MCP Registry
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      oidc_negative_control:
+        description: 'Run only the login control without OIDC permission (expected failure)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  MCP_PUBLISHER_VERSION: v1.8.1
+  MCP_PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
+
+jobs:
+  publish:
+    if: github.repository == 'entire-vc/evc-spark-mcp' && !inputs.oidc_negative_control
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install verified mcp-publisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl --fail --location --retry 3 -o mcp-publisher.tar.gz \
+            "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          echo "${MCP_PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+
+      - name: Authenticate with GitHub OIDC
+        run: '"$RUNNER_TEMP/mcp-publisher" login github-oidc'
+
+      # The hosted registry manifest has its own version, independent of npm.
+      - name: Validate server.json
+        run: '"$RUNNER_TEMP/mcp-publisher" validate server.json'
+
+      - name: Publish server.json
+        run: '"$RUNNER_TEMP/mcp-publisher" publish server.json'
+
+  oidc-negative-control:
+    if: github.repository == 'entire-vc/evc-spark-mcp' && inputs.oidc_negative_control
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    # No id-token permission: the same login command must fail closed.
+    permissions:
+      contents: read
+    steps:
+      - name: Install verified mcp-publisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl --fail --location --retry 3 -o mcp-publisher.tar.gz \
+            "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          echo "${MCP_PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+
+      - name: Authenticate with GitHub OIDC (expected failure)
+        run: '"$RUNNER_TEMP/mcp-publisher" login github-oidc'
